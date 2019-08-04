@@ -14,10 +14,12 @@ import qualified System.IO.Temp as Temp
 import qualified System.Process as Process
 
 import Control.Monad (when)
+import Control.Applicative (liftA2)
 import Data.Foldable (traverse_)
 import Data.Functor ((<&>))
 import System.FilePath ((</>))
 
+import qualified Kesha
 import qualified Kesha.NAR
 
 import Test.Hspec
@@ -50,7 +52,7 @@ main :: IO ()
 main = Temp.withSystemTempDirectory "kesha-test" (hspec . spec)
 
 spec :: FilePath -> Spec
-spec tempDir =
+spec tempDir = do
   describe "NAR packing" $ do
     describe "matches the output of `nix-store --dump`" $ do
 
@@ -58,29 +60,63 @@ spec tempDir =
         it "matches for Regular files" $
           property $ \regular ->
             inTempDirectory tempDir "Regular" $
-              createFSO_Regular regular >>= checkNAR
+              checkNAR =<< createFSO_Regular regular
 
       modifyMaxSuccess (const 20) $
         it "matches for SymLinks" $
           property $ \symLink -> do
             inTempDirectory tempDir "SymLink" $
-              createFSO_SymLink symLink >>= checkNAR
+              checkNAR =<< createFSO_SymLink symLink
 
       modifyMaxSuccess (const 20) $
         it "matches for Directories" $
           property $ \directory ->
-            Temp.withTempDirectory tempDir "Directory" $ \path ->
-              createFSO_Directory path directory >> checkNAR path
+            Temp.withTempDirectory tempDir "Directory" $ \path -> do
+              createFSO_Directory path directory
+              checkNAR path
 
-checkNAR :: FilePath -> Expectation
-checkNAR path = do
-  result <- Kesha.NAR.localPack path
-  case result of
-    Left err -> expectationFailure err
-    Right nar -> do
-      want <- nixStoreDump path
-      let got = Kesha.NAR.dump nar
-      want `shouldBe` got
+  describe "Hashing" $ do
+    describe "matches the output of `nix-hash --type sha256 --base32`" $ do
+      modifyMaxSuccess (const 20) $
+        it "matches for any FSO" $
+          property $ \fso ->
+            case fso of
+              Regular regular ->
+                checkHash =<< createFSO_Regular regular
+
+              SymLink symLink ->
+                checkHash =<< createFSO_SymLink symLink
+
+              Directory directory ->
+                Temp.withTempDirectory tempDir "Directory" $ \path -> do
+                  createFSO_Directory path directory
+                  checkHash path
+  where
+  checkNAR :: FilePath -> Expectation
+  checkNAR path = do
+    result <- liftA2 (,) (nix_store_dump path) (Kesha.NAR.localPack path)
+    case result of
+      (Right want, Right got) ->
+        want `shouldBe` Kesha.NAR.dump got
+
+      (Left exitCode, _) ->
+        expectationFailure ("nix-store --dump failed: " <> show exitCode)
+
+      (_, Left err) ->
+        expectationFailure ("Kesha.NAR.localPack failed: " <> err)
+
+  checkHash :: FilePath -> Expectation
+  checkHash path = do
+    result <- liftA2 (,) (nix_hash path) (Kesha.hash path)
+    case result of
+      (Right want, Right got) ->
+        BSL.toStrict want `shouldBe` got
+
+      (Left exitCode, _) ->
+        expectationFailure ("nix-hash failed: " <> show exitCode)
+
+      (_, Left err) ->
+        expectationFailure ("Kesha.hash failed: " <> err)
 
 data FSO
   = Regular FSO_Regular
@@ -189,16 +225,32 @@ createFSO_Directory root =
     Directory.createDirectoryIfMissing True path
     Directory.withCurrentDirectory path (createFSO_Regular regular)
 
-nixStoreDump :: FilePath -> IO BSL.ByteString
-nixStoreDump path = do
+nix_store_dump :: FilePath -> IO (Either Int BSL.ByteString)
+nix_store_dump path = do
   (_, Just hout, _, processHandle) <-
-    Process.createProcess (Process.proc "nix-store" ["--dump", path])
+    Process.createProcess
+      (Process.proc "nix-store" ["--dump", path])
       { Process.std_out = Process.CreatePipe }
 
   exit <- Process.waitForProcess processHandle
   case exit of
-    Exit.ExitFailure _code -> undefined
-    Exit.ExitSuccess -> BSL.hGetContents hout
+    Exit.ExitFailure code -> pure (Left code)
+    Exit.ExitSuccess -> Right <$> BSL.hGetContents hout
+
+nix_hash :: FilePath -> IO (Either Int BSL.ByteString)
+nix_hash path = do
+  (_, Just hout, _, processHandle) <-
+    Process.createProcess
+      (Process.proc "nix-hash" ["--type", "sha256", "--base32", path])
+      { Process.std_out = Process.CreatePipe }
+
+  exit <- Process.waitForProcess processHandle
+  case exit of
+    Exit.ExitFailure code -> pure (Left code)
+    Exit.ExitSuccess ->
+      Right . BSL.init <$> BSL.hGetContents hout
+      --       ^^^^^^
+      -- Need to drop the trailing newline
 
 inTempDirectory :: FilePath -> String -> IO a -> IO a
 inTempDirectory parent template m =
