@@ -4,7 +4,3 @@
 resolver: lts-13.19 # ghc-8.6.4
 packages:
   - .
-extra-deps:
-  # Until https://github.com/pxqr/base32-bytestring/pull/5 gets merged
-  - git: https://github.com/FilWisher/base32-bytestring.git
-    commit: 0c4790ba150a35f7d0d56fe7262ccbe8407c2471

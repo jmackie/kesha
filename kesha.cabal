@@ -28,9 +28,9 @@ library
     cryptohash-sha256,
     containers,
     text,
-    base32-bytestring,
     filepath,
     directory,
+    hex,
   --other-modules: Paths_kesha
 
 executable kesha
