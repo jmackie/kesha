@@ -16,3 +16,6 @@ hash path = fmap (sha256sum . NAR.dump) <$> NAR.localPack path
 
 sha256sum :: BSL.ByteString -> BS.ByteString
 sha256sum = Base32.encode . SHA256.hashlazy
+
+-- https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/fetchgit/nix-prefetch-git
+-- https://github.com/NixOS/nix/blob/master/src/libutil/hash.cc
