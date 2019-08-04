@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/FilWisher/base32-bytestring.git
+  tag: 0c4790ba150a35f7d0d56fe7262ccbe8407c2471
