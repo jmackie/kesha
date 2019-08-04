@@ -3,3 +3,6 @@
 resolver: lts-13.19 # ghc-8.6.4
 packages:
   - .
+extra-deps:
+  - base32-bytestring-0.2.1.0@sha256:35e85c429d1cdb8f032035aa0b42fed19897aa90fa5fbad6dee072404cc78b87
+  - bits-extras-0.1.3@sha256:ed3bc33bdb8f544f23baea198afda34b32da608531e20efafe494cd4b315ff79
