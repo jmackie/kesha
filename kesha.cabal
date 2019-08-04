@@ -28,7 +28,7 @@ library
     cryptohash-sha256,
     containers,
     text,
-    base16-bytestring,
+    base32-bytestring,
     filepath,
     directory,
   --other-modules: Paths_kesha
