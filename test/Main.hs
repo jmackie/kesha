@@ -9,14 +9,12 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
-import qualified System.FilePath as FilePath
 import qualified System.IO.Temp as Temp
 import qualified System.Process as Process
 
 import Control.Monad (when)
 import Control.Applicative (liftA2)
 import Data.Foldable (traverse_)
-import Data.Functor ((<&>))
 import System.FilePath ((</>))
 
 import qualified Kesha
@@ -29,12 +27,10 @@ import Test.Hspec
   , expectationFailure
   , hspec
   , it
-  , runIO
   , shouldBe
   )
 import Test.QuickCheck
   ( Arbitrary(..)
-  , Gen
   , choose
   , elements
   , oneof
