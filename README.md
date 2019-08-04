@@ -1,5 +1,7 @@
 # `kesha`
 
+[![Build Status](https://travis-ci.org/jmackie/kesha.svg?branch=master)](https://travis-ci.org/jmackie/kesha)
+
 Generate a `sha256` hash for any filesystem thing.
 
 Until I get round to writing this properly, the idea is that
