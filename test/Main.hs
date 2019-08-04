@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 module Main (main) where
 
 import Prelude
@@ -75,18 +76,19 @@ spec tempDir = do
     describe "matches the output of `nix-hash --type sha256 --base32`" $ do
       modifyMaxSuccess (const 20) $
         it "matches for any FSO" $
-          property $ \fso ->
-            case fso of
-              Regular regular ->
+          property $ \case
+            Regular regular ->
+              inTempDirectory tempDir "Regular" $
                 checkHash =<< createFSO_Regular regular
 
-              SymLink symLink ->
+            SymLink symLink ->
+              inTempDirectory tempDir "SymLink" $
                 checkHash =<< createFSO_SymLink symLink
 
-              Directory directory ->
-                Temp.withTempDirectory tempDir "Directory" $ \path -> do
-                  createFSO_Directory path directory
-                  checkHash path
+            Directory directory ->
+              Temp.withTempDirectory tempDir "Directory" $ \path -> do
+                createFSO_Directory path directory
+                checkHash path
   where
   checkNAR :: FilePath -> Expectation
   checkNAR path = do
