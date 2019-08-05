@@ -17,8 +17,8 @@ extra-source-files:
   README.md
 
 tested-with:
-  GHC ==8.2.* || ==8.4.* || ==8.6.*
-  -- NOTE `nix-build --argstr compiler ghc822`
+  GHC ==8.6.5
+  -- GHC ==8.2.* || ==8.4.* || ==8.6.*
 
 source-repository head
   type: git

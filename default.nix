@@ -18,27 +18,19 @@ let
       sha256 = "1jzhc0k07cy37sravy0s9mmwrddy0vnp3479d8ndk750ncb2sjx1";
     }) { overlays = [ cabal-hashes-overlay ]; };
 
-in
-{ compiler ? "ghc864"
-, returnShellEnv ? pkgs.lib.inNixShell
-}:
-
-let
   haskellPackages =
-    pkgs.haskell.packages.${compiler}.override {
+    pkgs.haskell.packages.ghc865.override {
       overrides = self: super: {
-        # Pinning the versions used in the ghc 8.6.x lts snapshots
-        directory = super.callHackage "directory" "1.3.3.0" {};
-        process = super.callHackage "process" "1.6.5.0" {};
       };
     };
 
-  gitignore = (import (pkgs.fetchFromGitHub {
-    owner = "hercules-ci";
-    repo = "gitignore";
-    rev = "ec5dd0536a5e4c3a99c797b86180f7261197c124";
-    sha256 = "0k2r8y21rn4kr5dmddd3906x0733fs3bb8hzfpabkdav3wcy3klv";
-  }) { inherit (pkgs) lib; }).gitignoreSource;
+  gitignore =
+    (import (pkgs.fetchFromGitHub {
+      owner = "hercules-ci";
+      repo = "gitignore";
+      rev = "ec5dd0536a5e4c3a99c797b86180f7261197c124";
+      sha256 = "0k2r8y21rn4kr5dmddd3906x0733fs3bb8hzfpabkdav3wcy3klv";
+    }) { inherit (pkgs) lib; }).gitignoreSource;
 
   drv =
     (haskellPackages.callCabal2nix "kesha" (gitignore ./.) {}).overrideAttrs
@@ -51,4 +43,4 @@ let
   };
 in
 
-if returnShellEnv then env else drv
+if pkgs.lib.inNixShell then env else drv
