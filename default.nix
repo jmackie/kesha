@@ -36,11 +36,11 @@ let
     (haskellPackages.callCabal2nix "kesha" (gitignore ./.) {}).overrideAttrs
       # Need `nix-*` tools for testing
       (attrs: { buildInputs = attrs.buildInputs ++ [ pkgs.nix ]; });
-
+in
+{
+  kesha = drv;
   env = haskellPackages.shellFor {
     packages = p: [ drv ];
     buildInputs = [];
   };
-in
-
-if pkgs.lib.inNixShell then env else drv
+}
