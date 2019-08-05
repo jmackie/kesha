@@ -1,10 +1,10 @@
--- https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/fetchgit/nix-prefetch-git
 {-# LANGUAGE OverloadedStrings #-}
 module Kesha
   ( hash
-
   , hashWith
+
   , Opts(..)
+  , defaultOpts
   , HashAlgo(..)
   , HashRepr(..)
   ) where
@@ -24,30 +24,52 @@ import Data.Word (Word8)
 
 import qualified Kesha.NAR as NAR
 
+-- | 
+-- Compute the cryptographic hash of a path using the 'defaultOpts'.
+--
+-- The output of @'hash' path@ should be consistent with that of 
+-- @nix-hash --type sha256 --base32 path@ (invoked at the command line).
+--
 hash :: FilePath -> IO (Either String BS.ByteString)
-hash = hashWith (Opts SHA256 Base32)
+hash = hashWith defaultOpts
 
-data Opts
-  = Opts
-      { hashAlgo :: HashAlgo
-      , hashRepr :: HashRepr
-      }
-
-data HashAlgo
-  = SHA256
-
--- |
--- https://github.com/NixOS/nix/blob/master/src/libutil/hash.hh
-hashSizeForAlgo :: HashAlgo -> Int
-hashSizeForAlgo SHA256 = 32
-
-data HashRepr
-  = Hex
-  | Base32
-
+-- | 
+-- Compute the cryptographic hash of a path using the given 'Opts'.
+--
 hashWith :: Opts -> FilePath -> IO (Either String BS.ByteString)
 hashWith opts path =
   fmap (printNar (hashAlgo opts) (hashRepr opts)) <$> NAR.localPack path
+
+-- | 
+-- Hashing options.
+--
+data Opts
+  = Opts
+      { hashAlgo :: HashAlgo -- ^ cryptographic hash algorithm to use
+      , hashRepr :: HashRepr -- ^ how to print the hash
+      }
+
+-- |
+-- Default hashing options.
+--
+-- These are the default options used by most of the Nix tooling (e.g.
+-- @nix-prefetch-git@).
+--
+defaultOpts :: Opts
+defaultOpts = Opts SHA256 Base32
+
+-- |
+-- Available hash algorithms.
+--
+data HashAlgo
+  = SHA256
+
+-- | 
+-- Printable hash representations.
+--
+data HashRepr
+  = Hex
+  | Base32
 
 printNar :: HashAlgo -> HashRepr -> NAR.NAR -> BS.ByteString
 printNar SHA256 Hex
@@ -62,9 +84,6 @@ printNar SHA256 Base32
   . SHA256.hashlazy
   . NAR.dump
 
--- |
--- This is quite nasty...
---
 -- https://github.com/NixOS/nix/blob/master/src/libutil/hash.cc
 printHash32 :: HashAlgo -> BS.ByteString -> BS.ByteString
 printHash32 algo rawHash = go (len - 1) ""
@@ -97,6 +116,10 @@ printHash32 algo rawHash = go (len - 1) ""
     (!!) :: Seq.Seq a -> Int -> a
     (!!) xs i = fromJust (Seq.lookup i xs)
     infixl 9 !!
+
+-- https://github.com/NixOS/nix/blob/master/src/libutil/hash.hh
+hashSizeForAlgo :: HashAlgo -> Int
+hashSizeForAlgo SHA256 = 32
 
 -- omitted: E O U T
 base32Chars :: Seq.Seq Char

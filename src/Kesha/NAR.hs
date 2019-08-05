@@ -2,7 +2,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 -- |
--- Nix ARchive format (NAR)
+-- Implementation of the Nix ARchive format (NAR)
+--
 -- https://nixos.org/~eelco/pubs/phd-thesis.pdf
 --
 module Kesha.NAR
@@ -31,11 +32,10 @@ import Data.Traversable (for)
 import System.FilePath ((</>))
 
 -- |
--- Nix ARchive format (NAR)
+-- A packed NAR archive. 
+--
 newtype NAR = NAR FSO
 
--- |
--- File System Object (FSO).
 data FSO
   = Regular IsExecutable Size BSL.ByteString
   | SymLink Utf8FilePath
@@ -54,6 +54,11 @@ data PathType
   | DirectoryType
   | AmbiguousType
 
+-- | 
+-- Create a NAR archive for the given path in a local context.
+--
+-- See figure 5.2 of https://nixos.org/~eelco/pubs/phd-thesis.pdf
+--
 localPack :: FilePath -> IO (Either String NAR)
 localPack path = second NAR <$> localPackFSO path
 
@@ -87,6 +92,9 @@ localPackFSO path =
         second (Directory  . Map.fromList)
         (traverse sequence entries)
 
+-- |
+-- Serialize a NAR archive.
+--
 dump :: NAR -> BSL.ByteString
 dump = Binary.runPut . putNAR
 
