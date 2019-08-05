@@ -32,15 +32,21 @@ let
       sha256 = "0k2r8y21rn4kr5dmddd3906x0733fs3bb8hzfpabkdav3wcy3klv";
     }) { inherit (pkgs) lib; }).gitignoreSource;
 
-  drv =
+  kesha =
     (haskellPackages.callCabal2nix "kesha" (gitignore ./.) {}).overrideAttrs
       # Need `nix-*` tools for testing
       (attrs: { buildInputs = attrs.buildInputs ++ [ pkgs.nix ]; });
 in
 {
-  kesha = drv;
+  inherit kesha;
   env = haskellPackages.shellFor {
-    packages = p: [ drv ];
-    buildInputs = [];
+    packages = p: [
+      kesha
+    ];
+
+    buildInputs = [
+      # Hardcode some global arguments to `stack` to make life easier
+      (pkgs.writeShellScriptBin "stack" "${pkgs.stack}/bin/stack --no-nix --system-ghc $@")
+    ];
   };
 }
