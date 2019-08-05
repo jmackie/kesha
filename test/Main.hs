@@ -13,10 +13,11 @@ import qualified System.Exit as Exit
 import qualified System.IO.Temp as Temp
 import qualified System.Process as Process
 
-import Control.Monad (when)
 import Control.Applicative (liftA2)
+import Control.Monad (when)
 import Data.Foldable (traverse_)
 import System.FilePath ((</>))
+import Data.Semigroup ((<>))
 
 import qualified Kesha
 import qualified Kesha.NAR
@@ -131,9 +132,9 @@ instance Arbitrary FSO where
 
 data FSO_Regular
   = FSO_Regular
-    { regularIsExecutable :: Bool
+    { _regularIsExecutable :: Bool
     , regularName :: PathPiece
-    , regularContents :: Contents
+    , _regularContents :: Contents
     }
   deriving (Show)
 
@@ -142,8 +143,8 @@ instance Arbitrary FSO_Regular where
 
 data FSO_SymLink
   = FSO_SymLink
-      { symLinkIsFile :: Bool
-      , symLinkTarget :: PathPiece
+      { _symLinkIsFile :: Bool
+      , _symLinkTarget :: PathPiece
       , symLinkName :: PathPiece
       }
   deriving (Show)

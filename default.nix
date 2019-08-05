@@ -1,5 +1,25 @@
-{ pkgs ? import <nixpkgs> {}
-, compiler ? "ghc864"
+let
+  cabal-hashes-overlay =
+    # Update from Hackage at 2019-08-05T11:50:23Z
+    let rev = "ef12e2cf418a00852f174a68c33b907ee57e750f"; in
+    self: super:  {
+      all-cabal-hashes = super.fetchurl {
+        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/${rev}.tar.gz";
+        sha256 = "1rspbkmj0369y5hw81k3y9ns2v2bzsnqpi4dhnqd0qxxzv3n1am7";
+      };
+    };
+
+  pkgs =
+    # 2019-08-05
+    let rev = "621880e5e761960d910b443ff9788c88baddc4f9"; in
+    import (builtins.fetchTarball {
+      name = "nixpkgs-${rev}";
+      url = "https://github.com/nixos/nixpkgs/archive/${rev}.tar.gz";
+      sha256 = "1jzhc0k07cy37sravy0s9mmwrddy0vnp3479d8ndk750ncb2sjx1";
+    }) { overlays = [ cabal-hashes-overlay ]; };
+
+in
+{ compiler ? "ghc864"
 , returnShellEnv ? pkgs.lib.inNixShell
 }:
 
@@ -7,6 +27,9 @@ let
   haskellPackages =
     pkgs.haskell.packages.${compiler}.override {
       overrides = self: super: {
+        # Pinning the versions used in the ghc 8.6.x lts snapshots
+        directory = super.callHackage "directory" "1.3.3.0" {};
+        process = super.callHackage "process" "1.6.5.0" {};
       };
     };
 

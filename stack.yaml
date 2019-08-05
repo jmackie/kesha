@@ -1,6 +1,5 @@
-# NOTE:
-# curl https://www.stackage.org/lts-13.19/cabal.config > cabal.project.freeze
-#
 resolver: lts-13.19 # ghc-8.6.4
 packages:
   - .
+# NOTE:
+# curl https://www.stackage.org/lts-13.19/cabal.config > cabal.project.freeze
