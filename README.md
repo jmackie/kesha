@@ -2,24 +2,7 @@
 
 [![Build Status](https://travis-ci.org/jmackie/kesha.svg?branch=master)](https://travis-ci.org/jmackie/kesha)
 
-Generate a `sha256` hash for any filesystem thing.
+A Haskell library and executable for computing the cryptographic hash of any path.
 
-Until I get round to writing this properly, the idea is that
-
-```
-cabal new-build
-cabal new-run kesha -- ./src
-
-# Or with stack
-stack build
-stack run kesha -- ./src
-```
-
-Matches...
-
-```
-nix-hash --type sha256 --base32 ./src
-```
-
-Note that the flags to `nix-hash` are the default behaviour for
-`nix-prefetch-git`.
+The implementation is an almost verbatim port of `nix-hash`, which is the
+standard tool used by the [Nix](https://nixos.org/nix/) package manager.

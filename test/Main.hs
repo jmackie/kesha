@@ -47,7 +47,23 @@ import Test.Hspec.QuickCheck
   )
 
 main :: IO ()
-main = Temp.withSystemTempDirectory "kesha-test" (hspec . spec)
+main = do
+  exes <- liftA2 (,) (Directory.findExecutable "nix-store") 
+                     (Directory.findExecutable "nix-hash")
+  case exes of
+    (Nothing, Nothing) -> do
+      putStrLn "Nix tooling not found on path - skipping tests"
+
+    (Just _, Nothing) -> do
+      putStrLn "`nix-store` not found on path - aborting"
+      Exit.exitFailure
+
+    (Nothing , Just _) -> do
+      putStrLn "`nix-hash` not found on path - aborting"
+      Exit.exitFailure
+
+    (Just _, Just _) ->
+      Temp.withSystemTempDirectory "kesha-test" (hspec . spec)
 
 spec :: FilePath -> Spec
 spec tempDir = do

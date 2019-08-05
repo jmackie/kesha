@@ -3,8 +3,10 @@ build-type: Simple
 
 name: kesha
 version: 0.1.0
-synopsis: File hashing
-description: TODO
+synopsis: Compute the cryptographic hash of any path
+description:
+   A Haskell library and executable for computing the cryptographic hash of any path.
+
 homepage: https://github.com/jmackie/kesha
 bug-reports: https://github.com/jmackie/kesha/issues
 license: MIT
@@ -53,7 +55,9 @@ executable kesha
   main-is: Main.hs
   build-depends:
     base >= 4.10.1 && < 4.13,
+
     bytestring,
+
     kesha
 
 test-suite test
@@ -63,14 +67,16 @@ test-suite test
   ghc-options: -Wall -threaded -rtsopts
   build-depends:
     base >= 4.10.1 && < 4.13,
-    process,
-    bytestring,
-    kesha,
+
     QuickCheck,
-    temporary,
-    filepath,
+    bytestring,
     containers,
     directory >= 1.3.1,
-    hspec
+    filepath,
+    hspec,
+    process,
+    temporary,
+
+    kesha
   other-modules:
   default-language: Haskell2010
