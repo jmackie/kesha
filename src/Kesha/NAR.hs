@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TupleSections #-}
 -- |
 -- Implementation of the Nix ARchive format (NAR)
 --
@@ -85,8 +84,9 @@ localPackFSO path =
 
     Just DirectoryType -> do
       fs <- Directory.listDirectory path
-      entries <- for fs $ \path' ->
-        (Text.pack path',) <$> localPackFSO (path </> path')
+      entries <- for fs $ \path' -> do
+        results <- localPackFSO (path </> path')
+        pure (Text.pack path', results)
 
       pure $
         second (Directory  . Map.fromList)
