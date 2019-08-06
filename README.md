@@ -24,5 +24,6 @@ stack install
 with [Nix](https://nixos.org/nix/)
 
 ```bash
-nix-env -f https://github.com/jmackie/kesha/archive/master.tar.gz -iA kesha
+nix build -f https://github.com/jmackie/kesha/archive/master.tar.gz kesha -o ./kesha
+nix-env -i ./kesha
 ```
