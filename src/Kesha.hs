@@ -75,13 +75,13 @@ printNar :: HashAlgo -> HashRepr -> NAR.NAR -> BS.ByteString
 printNar SHA256 Hex
   = ASCII.map Char.toLower
   . Hex.hex
-  . SHA256.hashlazy
+  . SHA256.hash
   . NAR.dump
 
 printNar SHA256 Base32
   = ASCII.map Char.toLower
   . printHash32 SHA256
-  . SHA256.hashlazy
+  . SHA256.hash
   . NAR.dump
 
 -- https://github.com/NixOS/nix/blob/master/src/libutil/hash.cc

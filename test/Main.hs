@@ -6,7 +6,7 @@ module Main (main) where
 
 import Prelude
 
-import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
@@ -125,7 +125,7 @@ spec tempDir = do
     result <- liftA2 (,) (nix_hash path) (Kesha.hash path)
     case result of
       (Right want, Right got) ->
-        BSL.toStrict want `shouldBe` got
+        want `shouldBe` got
 
       (Left exitCode, _) ->
         expectationFailure ("nix-hash failed: " <> show exitCode)
@@ -191,15 +191,15 @@ instance Arbitrary PathPiece where
     validChars = ['A'..'Z'] <> ['a'..'z']
 
 newtype Contents
-  = Contents { unContents :: BSL.ByteString }
+  = Contents { unContents :: BS.ByteString }
   deriving newtype (Show)
 
 instance Arbitrary Contents where
-  arbitrary = fmap (Contents . BSL.pack) arbitrary
+  arbitrary = fmap (Contents . BS.pack) arbitrary
 
 createFSO_Regular :: FSO_Regular -> IO FilePath
 createFSO_Regular (FSO_Regular isExecutable (PathPiece path) contents) = do
-  BSL.writeFile path (unContents contents)
+  BS.writeFile path (unContents contents)
   when isExecutable $ do
     perm <- Directory.getPermissions path
     Directory.setPermissions path perm { Directory.executable = True }
@@ -208,7 +208,7 @@ createFSO_Regular (FSO_Regular isExecutable (PathPiece path) contents) = do
 createFSO_SymLink :: FSO_SymLink -> IO FilePath
 createFSO_SymLink (FSO_SymLink isFile (PathPiece target) (PathPiece name))
   | isFile = do
-      BSL.writeFile target mempty
+      BS.writeFile target mempty
       Directory.createFileLink target name
       pure target
   | otherwise = do
@@ -240,7 +240,7 @@ createFSO_Directory root =
     Directory.createDirectoryIfMissing True path
     Directory.withCurrentDirectory path (createFSO_Regular regular)
 
-nix_store_dump :: FilePath -> IO (Either Int BSL.ByteString)
+nix_store_dump :: FilePath -> IO (Either Int BS.ByteString)
 nix_store_dump path = do
   (_, Just hout, _, processHandle) <-
     Process.createProcess
@@ -250,9 +250,9 @@ nix_store_dump path = do
   exit <- Process.waitForProcess processHandle
   case exit of
     Exit.ExitFailure code -> pure (Left code)
-    Exit.ExitSuccess -> Right <$> BSL.hGetContents hout
+    Exit.ExitSuccess -> Right <$> BS.hGetContents hout
 
-nix_hash :: FilePath -> IO (Either Int BSL.ByteString)
+nix_hash :: FilePath -> IO (Either Int BS.ByteString)
 nix_hash path = do
   (_, Just hout, _, processHandle) <-
     Process.createProcess
@@ -263,8 +263,8 @@ nix_hash path = do
   case exit of
     Exit.ExitFailure code -> pure (Left code)
     Exit.ExitSuccess ->
-      Right . BSL.init <$> BSL.hGetContents hout
-      --       ^^^^^^
+      Right . BS.init <$> BS.hGetContents hout
+      --      ^^^^^^
       -- Need to drop the trailing newline
 
 inTempDirectory :: FilePath -> String -> IO a -> IO a

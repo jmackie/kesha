@@ -14,6 +14,7 @@ module Kesha.NAR
 import Prelude
 
 import qualified Data.Binary.Put as Binary
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -23,7 +24,6 @@ import qualified System.Directory as Directory
 import Control.Monad (when)
 import Data.Bifunctor (second)
 import Data.Foldable (traverse_, for_)
-import Data.Int (Int64)
 import Data.Semigroup ((<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -36,13 +36,13 @@ import System.FilePath ((</>))
 newtype NAR = NAR FSO
 
 data FSO
-  = Regular IsExecutable Size BSL.ByteString
+  = Regular IsExecutable Size BS.ByteString
   | SymLink Utf8FilePath
   | Directory (Map.Map PathPiece FSO)
 
 type IsExecutable = Bool
 
-type Size = Int64
+type Size = Int
 
 type Utf8FilePath = Text
 type PathPiece = Text    -- shouldn't include '/' or 'NUL' !
@@ -73,7 +73,7 @@ localPackFSO path =
     Just RegularType -> do
       isExecutable <- Directory.executable <$> Directory.getPermissions path
       size <- fromIntegral <$> Directory.getFileSize path
-      contents <- BSL.readFile path
+      contents <- BS.readFile path
       let fso = Regular isExecutable size contents
       pure $ Right fso
 
@@ -95,8 +95,8 @@ localPackFSO path =
 -- |
 -- Serialize a NAR archive.
 --
-dump :: NAR -> BSL.ByteString
-dump = Binary.runPut . putNAR
+dump :: NAR -> BS.ByteString
+dump = BSL.toStrict . Binary.runPut . putNAR
 
 putNAR :: NAR -> Binary.Put
 putNAR (NAR fso) = str "nix-archive-1" <> parens (putFSO fso)
@@ -112,7 +112,7 @@ putNAR (NAR fso) = str "nix-archive-1" <> parens (putFSO fso)
 
     SymLink target -> do
       strs ["type", "symlink"]
-      strs ["target", BSL.fromStrict (encodeUtf8 target)]
+      strs ["target", encodeUtf8 target]
 
     Directory entries -> do
       strs ["type", "directory"]
@@ -122,7 +122,7 @@ putNAR (NAR fso) = str "nix-archive-1" <> parens (putFSO fso)
         str "entry"
         parens $ do
           str "name"
-          str (BSL.fromStrict (encodeUtf8 name))
+          str (encodeUtf8 name)
           str "node"
           parens (putFSO node)
 
@@ -132,16 +132,16 @@ putNAR (NAR fso) = str "nix-archive-1" <> parens (putFSO fso)
   parens :: Binary.Put -> Binary.Put
   parens m = str "(" >> m >> str ")"
 
-  str :: BSL.ByteString -> Binary.Put
-  str bs = let len = BSL.length bs in int len <> pad len bs
+  str :: BS.ByteString -> Binary.Put
+  str bs = let len = BS.length bs in int len <> pad len bs
 
-  strs :: [BSL.ByteString] -> Binary.Put
+  strs :: [BS.ByteString] -> Binary.Put
   strs = traverse_ str
 
-  pad :: Int64 -> BSL.ByteString -> Binary.Put
+  pad :: Int -> BS.ByteString -> Binary.Put
   pad n bs = do
-    Binary.putLazyByteString bs
-    Binary.putLazyByteString (BSL.replicate (padLen n) 0)
+    Binary.putByteString bs
+    Binary.putByteString (BS.replicate (padLen n) 0)
 
   -- Distance to the next multiple of 8
   padLen :: Integral a => a -> a
