@@ -34,7 +34,7 @@ library
     Kesha.NAR
   build-depends:
     -- https://wiki.haskell.org/Base_package
-    base >= 4.10.1 && < 4.13,
+    base >= 4.10.1 && < 4.14,
 
     binary,
     bytestring,
@@ -52,7 +52,7 @@ executable kesha
   main-is: Main.hs
   other-modules: Paths_kesha
   build-depends:
-    base >= 4.10.1 && < 4.13,
+    base >= 4.10.1 && < 4.14,
 
     bytestring,
 
@@ -64,7 +64,7 @@ test-suite test
   hs-source-dirs: test
   ghc-options: -Wall -threaded -rtsopts
   build-depends:
-    base >= 4.10.1 && < 4.13,
+    base >= 4.10.1 && < 4.14,
 
     QuickCheck,
     bytestring,
