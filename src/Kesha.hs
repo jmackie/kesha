@@ -15,7 +15,6 @@ import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as ASCII
 import qualified Data.Char as Char
-import qualified Data.Hex as Hex
 import qualified Data.Sequence as Seq
 
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
@@ -68,16 +67,9 @@ data HashAlgo
 -- Printable hash representations.
 --
 data HashRepr
-  = Hex
-  | Base32
+  = Base32
 
 printNar :: HashAlgo -> HashRepr -> NAR.NAR -> BS.ByteString
-printNar SHA256 Hex
-  = ASCII.map Char.toLower
-  . Hex.hex
-  . SHA256.hash
-  . NAR.dump
-
 printNar SHA256 Base32
   = ASCII.map Char.toLower
   . printHash32 SHA256
