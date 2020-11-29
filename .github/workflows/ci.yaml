@@ -27,6 +27,7 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v12
+        # with: nixpath=./nixpkgs?
 
       # - name: Setup cabal cache
       #   uses: actions/cache@v1
@@ -34,5 +35,6 @@ jobs:
       #     path: "~/.cabal"
       #     key: "${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('kesha.cabal') }}"
 
+      # TODO: cachix the ghc builds coming from this?
       - name: Run ci.sh
         run: "nix-shell --arg dev false --run ./ci.sh"
