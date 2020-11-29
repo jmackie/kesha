@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-test-check:
+    matrix:
+      os:
+        - ubuntu-latest
+        # TODO: check more OS?
+      compiler:
+        - "ghc802"
+        - "ghc822"
+        - "ghc844"
+        - "ghc865"
+        - "ghc883"
+        - "ghc8101"
+
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2.3.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v12
+
+      - name: Setup cabal cache
+        uses: actions/cache@v1
+        with:
+          path: "~/.cabal"
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('kesha.cabal') }}
+
+      - name: Run ci.sh
+        run: "nix-shell --arg dev false --run ./ci.sh"

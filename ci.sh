@@ -1,5 +1,4 @@
-#!/usr/bin/env nix-shell
-#! nix-shell -i bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 shopt -s inherit_errexit

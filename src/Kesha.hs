@@ -1,17 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- |
+-- Module: Kesha
+-- Copyright: (c) 2020 Jordan Mackie
+-- License: MIT
+-- Maintainer: Jordan Mackie <contact@jmackie.dev>
+-- Stability: experimental
+-- Portability: portable
+--
+-- An implementation of @<https://nixos.org/guides/nix-pills/nix-store-paths.html#idm140737319621872 nix-hash>@.
 module Kesha
   ( hash,
     hashWith,
-    Opts (..),
-    defaultOpts,
+    HashOptions (..),
+    defaultHashOptions,
     HashAlgo (..),
     HashRepr (..),
   )
 where
 
+import qualified Crypto.Hash.MD5 as MD5
+import qualified Crypto.Hash.SHA1 as SHA1
 import qualified Crypto.Hash.SHA256 as SHA256
-import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import Data.Bits (shiftL, shiftR, (.&.), (.|.))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as ASCII
 import qualified Data.Char as Char
@@ -22,53 +33,80 @@ import qualified Kesha.NAR as NAR
 import Prelude hiding ((!!))
 
 -- |
--- Compute the cryptographic hash of a path using the 'defaultOpts'.
+-- Compute the cryptographic hash of a path using the 'defaultHashOptions'.
 --
 -- The output of @'hash' path@ should be consistent with that of
--- @nix-hash --type sha256 --base32 path@ (invoked at the command line).
-hash :: FilePath -> IO (Either String BS.ByteString)
-hash = hashWith defaultOpts
+-- @nix-hash --type sha256 --base32 path@.
+hash :: FilePath -> IO (Either NAR.PackError BS.ByteString)
+hash = hashWith defaultHashOptions
 
 -- |
--- Compute the cryptographic hash of a path using the given 'Opts'.
-hashWith :: Opts -> FilePath -> IO (Either String BS.ByteString)
+-- Compute the cryptographic hash of a path using the given 'HashOptions'.
+hashWith :: HashOptions -> FilePath -> IO (Either NAR.PackError BS.ByteString)
 hashWith opts path =
   fmap (printNar (hashAlgo opts) (hashRepr opts)) <$> NAR.localPack path
 
 -- |
 -- Hashing options.
-data Opts
-  = Opts
-      { -- | cryptographic hash algorithm to use
-        hashAlgo :: HashAlgo,
-        -- | how to print the hash
-        hashRepr :: HashRepr
-      }
+data HashOptions = HashOptions
+  { -- | cryptographic hash algorithm to use
+    hashAlgo :: HashAlgo,
+    -- | how to print the hash
+    hashRepr :: HashRepr
+  }
 
 -- |
 -- Default hashing options.
 --
 -- These are the default options used by most of the Nix tooling (e.g.
 -- @nix-prefetch-git@).
-defaultOpts :: Opts
-defaultOpts = Opts SHA256 Base32
+defaultHashOptions :: HashOptions
+defaultHashOptions = HashOptions SHA256 Base32
 
 -- |
 -- Available hash algorithms.
 data HashAlgo
-  = SHA256
+  = MD5
+  | SHA1
+  | SHA256
 
 -- |
 -- Printable hash representations.
 data HashRepr
-  = Base32
+  = Base16
+  | Base32
 
 printNar :: HashAlgo -> HashRepr -> NAR.NAR -> BS.ByteString
-printNar SHA256 Base32 =
+printNar algo repr =
   ASCII.map Char.toLower
-    . printHash32 SHA256
-    . SHA256.hash
+    . ( case repr of
+          Base16 -> printHash16 algo
+          Base32 -> printHash32 algo
+      )
+    . ( case algo of
+          MD5 -> MD5.hash
+          SHA1 -> SHA1.hash
+          SHA256 -> SHA256.hash
+      )
     . NAR.dump
+
+-- https://github.com/NixOS/nix/blob/master/src/libutil/hash.cc
+printHash16 :: HashAlgo -> BS.ByteString -> BS.ByteString
+printHash16 algo rawHash =
+  ASCII.pack $
+    foldMap
+      ( \i ->
+          [ base16Chars !! fromIntegral (BS.index rawHash i `shiftR` 4),
+            base16Chars !! fromIntegral (BS.index rawHash i .&. 15)
+          ]
+      )
+      [0 .. hashSize - 1]
+  where
+    hashSize :: Int
+    hashSize = hashSizeForAlgo algo
+
+    base16Chars :: Seq.Seq Char
+    base16Chars = "0123456789abcdef"
 
 -- https://github.com/NixOS/nix/blob/master/src/libutil/hash.cc
 printHash32 :: HashAlgo -> BS.ByteString -> BS.ByteString
@@ -76,8 +114,14 @@ printHash32 algo rawHash = go (len - 1) ""
   where
     hashSize :: Int
     hashSize = hashSizeForAlgo algo
+
+    -- omitted: E O U T
+    base32Chars :: Seq.Seq Char
+    base32Chars = Seq.fromList "0123456789abcdfghijklmnpqrsvwxyz"
+
     len :: Int
     len = (hashSize * 8 - 1) `div` 5 + 1
+
     go :: Int -> BS.ByteString -> BS.ByteString
     go n accum
       | n < 0 = accum
@@ -85,7 +129,7 @@ printHash32 algo rawHash = go (len - 1) ""
         go (pred n) $
           ASCII.snoc accum (base32Chars !! (fromIntegral c .&. 0x1f))
       where
-        b , i, j :: Int
+        b, i, j :: Int
         b = n * 5
         i = b `div` 8
         j = b `mod` 8
@@ -93,16 +137,17 @@ printHash32 algo rawHash = go (len - 1) ""
         c =
           ((bytes !! i) `shiftR` j)
             .|. (if i >= (hashSize - 1) then 0 else (bytes !! (i + 1)) `shiftL` (8 - j))
+
     bytes :: Seq.Seq Word8
     bytes = Seq.fromList (BS.unpack rawHash)
-    (!!) :: Seq.Seq a -> Int -> a
-    (!!) xs i = fromJust (Seq.lookup i xs)
-    infixl 9 !!
 
 -- https://github.com/NixOS/nix/blob/master/src/libutil/hash.hh
 hashSizeForAlgo :: HashAlgo -> Int
+hashSizeForAlgo MD5 = 16
+hashSizeForAlgo SHA1 = 20
 hashSizeForAlgo SHA256 = 32
 
--- omitted: E O U T
-base32Chars :: Seq.Seq Char
-base32Chars = Seq.fromList "0123456789abcdfghijklmnpqrsvwxyz"
+(!!) :: Seq.Seq a -> Int -> a
+(!!) xs i = fromJust (Seq.lookup i xs)
+
+infixl 9 !!

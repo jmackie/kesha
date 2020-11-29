@@ -1,6 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main
@@ -10,6 +7,7 @@ where
 
 {- HLINT ignore "Redundant do" -}
 {- HLINT ignore "Use camelCase" -}
+{- HLINT ignore "Use lambda-case" -}
 
 import Control.Applicative (liftA2)
 import Control.Monad (when)
@@ -37,7 +35,7 @@ import Test.Hspec.QuickCheck
   ( modifyMaxSuccess,
   )
 import Test.QuickCheck
-  ( Arbitrary (..),
+  ( Arbitrary (arbitrary),
     choose,
     elements,
     oneof,
@@ -72,62 +70,93 @@ spec :: FilePath -> Spec
 spec tempDir = do
   describe "NAR packing" $ do
     describe "matches the output of `nix-store --dump`" $ do
-      modifyMaxSuccess (const 20)
-        $ it "matches for Regular files"
-        $ property
-        $ \regular ->
-          inTempDirectory tempDir "Regular" $
-            checkNAR =<< createFSO_Regular regular
-      modifyMaxSuccess (const 20)
-        $ it "matches for SymLinks"
-        $ property
-        $ \symLink -> do
-          inTempDirectory tempDir "SymLink" $
-            checkNAR =<< createFSO_SymLink symLink
-      modifyMaxSuccess (const 20)
-        $ it "matches for Directories"
-        $ property
-        $ \directory ->
-          Temp.withTempDirectory tempDir "Directory" $ \path -> do
-            createFSO_Directory path directory
-            checkNAR path
+      modifyMaxSuccess (const 20) $
+        it "matches for Regular files" $
+          property $
+            \regular ->
+              inTempDirectory tempDir "Regular" $
+                checkNAR =<< createFSO_Regular regular
+      modifyMaxSuccess (const 20) $
+        it "matches for SymLinks" $
+          property $
+            \symLink -> do
+              inTempDirectory tempDir "SymLink" $
+                checkNAR =<< createFSO_SymLink symLink
+      modifyMaxSuccess (const 20) $
+        it "matches for Directories" $
+          property $
+            \directory ->
+              Temp.withTempDirectory tempDir "Directory" $ \path -> do
+                createFSO_Directory path directory
+                checkNAR path
+
   describe "Hashing" $ do
+    describe "matches the output of `nix-hash --type md5" $ do
+      hashTests 20 (Kesha.HashOptions Kesha.MD5 Kesha.Base16)
+
+    describe "matches the output of `nix-hash --type md5 --base32" $ do
+      hashTests 20 (Kesha.HashOptions Kesha.MD5 Kesha.Base32)
+
+    describe "matches the output of `nix-hash --type sha1" $ do
+      hashTests 20 (Kesha.HashOptions Kesha.SHA1 Kesha.Base16)
+
+    describe "matches the output of `nix-hash --type sha1 --base32" $ do
+      hashTests 20 (Kesha.HashOptions Kesha.SHA1 Kesha.Base32)
+
+    describe "matches the output of `nix-hash --type sha256" $ do
+      hashTests 20 (Kesha.HashOptions Kesha.SHA256 Kesha.Base16)
+
     describe "matches the output of `nix-hash --type sha256 --base32`" $ do
-      modifyMaxSuccess (const 20)
-        $ it "matches for any FSO"
-        $ property
-        $ \case
-          Regular regular ->
-            inTempDirectory tempDir "Regular" $
-              checkHash =<< createFSO_Regular regular
-          SymLink symLink ->
-            inTempDirectory tempDir "SymLink" $
-              checkHash =<< createFSO_SymLink symLink
-          Directory directory ->
-            Temp.withTempDirectory tempDir "Directory" $ \path -> do
-              createFSO_Directory path directory
-              checkHash path
+      hashTests 20 (Kesha.HashOptions Kesha.SHA256 Kesha.Base32)
   where
+    hashTests n opts = do
+      modifyMaxSuccess (const n) $
+        it "matches for any FSO" $
+          property $ \fso -> case fso of
+            Regular regular ->
+              inTempDirectory tempDir "Regular" $
+                checkHash opts =<< createFSO_Regular regular
+            SymLink symLink ->
+              inTempDirectory tempDir "SymLink" $
+                checkHash opts =<< createFSO_SymLink symLink
+            Directory directory ->
+              Temp.withTempDirectory tempDir "Directory" $ \path -> do
+                createFSO_Directory path directory
+                checkHash opts path
+
     checkNAR :: FilePath -> Expectation
     checkNAR path = do
-      result <- liftA2 (,) (nix_store_dump path) (Kesha.NAR.localPack path)
+      result <- liftA2 (,) (nixStoreDump path) (Kesha.NAR.localPack path)
       case result of
         (Right want, Right got) ->
           want `shouldBe` Kesha.NAR.dump got
         (Left exitCode, _) ->
           expectationFailure ("nix-store --dump failed: " <> show exitCode)
         (_, Left err) ->
-          expectationFailure ("Kesha.NAR.localPack failed: " <> err)
-    checkHash :: FilePath -> Expectation
-    checkHash path = do
-      result <- liftA2 (,) (nix_hash path) (Kesha.hash path)
+          expectationFailure ("Kesha.NAR.localPack failed: " <> show err)
+
+    checkHash :: Kesha.HashOptions -> FilePath -> Expectation
+    checkHash opts path = do
+      result <- liftA2 (,) (nixHash (optsToArgs opts) path) (Kesha.hashWith opts path)
       case result of
         (Right want, Right got) ->
           want `shouldBe` got
         (Left exitCode, _) ->
           expectationFailure ("nix-hash failed: " <> show exitCode)
         (_, Left err) ->
-          expectationFailure ("Kesha.hash failed: " <> err)
+          expectationFailure ("Kesha.hash failed: " <> show err)
+
+    optsToArgs :: Kesha.HashOptions -> [String]
+    optsToArgs (Kesha.HashOptions algo repr) =
+      ( case algo of
+          Kesha.MD5 -> ["--type", "md5"]
+          Kesha.SHA1 -> ["--type", "sha1"]
+          Kesha.SHA256 -> ["--type", "sha256"]
+      )
+        <> ( case repr of
+               Kesha.Base16 -> []
+               Kesha.Base32 -> ["--base32"]
+           )
 
 data FSO
   = Regular FSO_Regular
@@ -143,59 +172,55 @@ instance Arbitrary FSO where
         Directory <$> arbitrary
       ]
 
-data FSO_Regular
-  = FSO_Regular
-      { _regularIsExecutable :: Bool,
-        regularName :: PathPiece,
-        _regularContents :: Contents
-      }
+data FSO_Regular = FSO_Regular
+  { _regularIsExecutable :: Bool,
+    regularName :: PathSegment,
+    _regularContents :: Contents
+  }
   deriving (Show)
 
 instance Arbitrary FSO_Regular where
   arbitrary = FSO_Regular <$> arbitrary <*> arbitrary <*> arbitrary
 
-data FSO_SymLink
-  = FSO_SymLink
-      { _symLinkIsFile :: Bool,
-        _symLinkTarget :: PathPiece,
-        symLinkName :: PathPiece
-      }
+data FSO_SymLink = FSO_SymLink
+  { _symLinkIsFile :: Bool,
+    _symLinkTarget :: PathSegment,
+    symLinkName :: PathSegment
+  }
   deriving (Show)
 
 instance Arbitrary FSO_SymLink where
   arbitrary = FSO_SymLink <$> arbitrary <*> arbitrary <*> arbitrary
 
-newtype FSO_Directory
-  = FSO_Directory {directoryMap :: Map.Map PathPiece FSO}
-  deriving newtype (Show)
+newtype FSO_Directory = FSO_Directory {directoryMap :: Map.Map PathSegment FSO}
+  deriving (Show)
 
 instance Arbitrary FSO_Directory where
   arbitrary =
-    scale (min 5) $ sized $ \size -> do
-      len <- choose (0, size)
-      FSO_Directory . Map.fromList <$> vectorOf len (resize (pred size) arbitrary)
+    scale (min 5) $
+      sized $ \size -> do
+        len <- choose (0, size)
+        FSO_Directory . Map.fromList <$> vectorOf len (resize (pred size) arbitrary)
 
-newtype PathPiece
-  = PathPiece {unPathPiece :: String} -- FIXME: Text
-  deriving newtype (Eq, Ord, Show)
+newtype PathSegment = PathSegment {unPathSegment :: String}
+  deriving (Eq, Ord, Show)
 
-instance Arbitrary PathPiece where
+instance Arbitrary PathSegment where
   arbitrary = do
     len <- choose (10, 20)
-    PathPiece <$> vectorOf len (elements validChars)
+    PathSegment <$> vectorOf len (elements validChars)
     where
       validChars :: String
       validChars = ['A' .. 'Z'] <> ['a' .. 'z']
 
-newtype Contents
-  = Contents {unContents :: BS.ByteString}
-  deriving newtype (Show)
+newtype Contents = Contents {unContents :: BS.ByteString}
+  deriving (Show)
 
 instance Arbitrary Contents where
   arbitrary = fmap (Contents . BS.pack) arbitrary
 
 createFSO_Regular :: FSO_Regular -> IO FilePath
-createFSO_Regular (FSO_Regular isExecutable (PathPiece path) contents) = do
+createFSO_Regular (FSO_Regular isExecutable (PathSegment path) contents) = do
   BS.writeFile path (unContents contents)
   when isExecutable $ do
     perm <- Directory.getPermissions path
@@ -203,7 +228,7 @@ createFSO_Regular (FSO_Regular isExecutable (PathPiece path) contents) = do
   pure path
 
 createFSO_SymLink :: FSO_SymLink -> IO FilePath
-createFSO_SymLink (FSO_SymLink isFile (PathPiece target) (PathPiece name))
+createFSO_SymLink (FSO_SymLink isFile (PathSegment target) (PathSegment name))
   | isFile = do
     BS.writeFile target mempty
     Directory.createFileLink target name
@@ -225,9 +250,10 @@ createFSO_Directory root =
             case fso of
               Regular regular -> [(dir, Right regular {regularName = piece})]
               SymLink symLink -> [(dir, Left symLink {symLinkName = piece})]
-              Directory directory -> flattenNodes (dir </> unPathPiece piece) directory
+              Directory directory -> flattenNodes (dir </> unPathSegment piece) directory
         )
         . directoryMap
+
     writeNode :: FilePath -> Either FSO_SymLink FSO_Regular -> IO FilePath
     writeNode path (Left symLink) = do
       Directory.createDirectoryIfMissing True path
@@ -236,8 +262,8 @@ createFSO_Directory root =
       Directory.createDirectoryIfMissing True path
       Directory.withCurrentDirectory path (createFSO_Regular regular)
 
-nix_store_dump :: FilePath -> IO (Either Int BS.ByteString)
-nix_store_dump path = do
+nixStoreDump :: FilePath -> IO (Either Int BS.ByteString)
+nixStoreDump path = do
   (_, Just hout, _, processHandle) <-
     Process.createProcess
       (Process.proc "nix-store" ["--dump", path])
@@ -248,11 +274,11 @@ nix_store_dump path = do
     Exit.ExitFailure code -> pure (Left code)
     Exit.ExitSuccess -> Right <$> BS.hGetContents hout
 
-nix_hash :: FilePath -> IO (Either Int BS.ByteString)
-nix_hash path = do
+nixHash :: [String] -> FilePath -> IO (Either Int BS.ByteString)
+nixHash args path = do
   (_, Just hout, _, processHandle) <-
     Process.createProcess
-      (Process.proc "nix-hash" ["--type", "sha256", "--base32", path])
+      (Process.proc "nix-hash" (args ++ [path]))
         { Process.std_out = Process.CreatePipe
         }
   exit <- Process.waitForProcess processHandle
