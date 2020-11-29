@@ -7,17 +7,18 @@ on:
 
 jobs:
   build-test-check:
-    matrix:
-      os:
-        - ubuntu-latest
-        # TODO: check more OS?
-      compiler:
-        - "ghc802"
-        - "ghc822"
-        - "ghc844"
-        - "ghc865"
-        - "ghc883"
-        - "ghc8101"
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          # TODO: check more OS?
+        compiler:
+          - "ghc802"
+          - "ghc822"
+          - "ghc844"
+          - "ghc865"
+          - "ghc883"
+          - "ghc8101"
 
     runs-on: "${{ matrix.os }}"
     steps:
