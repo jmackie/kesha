@@ -11,7 +11,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # TODO: check more OS?
+          # TODO: check more operating systems?
         compiler:
           - "ghc802"
           - "ghc822"
@@ -28,11 +28,11 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v12
 
-      - name: Setup cabal cache
-        uses: actions/cache@v1
-        with:
-          path: "~/.cabal"
-          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('kesha.cabal') }}
+      # - name: Setup cabal cache
+      #   uses: actions/cache@v1
+      #   with:
+      #     path: "~/.cabal"
+      #     key: "${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('kesha.cabal') }}"
 
       - name: Run ci.sh
         run: "nix-shell --arg dev false --run ./ci.sh"
