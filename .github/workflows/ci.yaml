@@ -5,6 +5,11 @@ on:
     branches:
       - master
 
+# NOTE: on caching
+# We could cache `cabal` stuff as well as Nix stuff, but CI runs are currently
+# around 4-5 minutes and aren't running that often. So it's probably not worth 
+# the effort (for now, at least).
+
 jobs:
   build-test-check:
     strategy:
@@ -34,6 +39,7 @@ jobs:
       #     path: "~/.cabal"
       #     key: "${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('kesha.cabal') }}"
 
-      # TODO: cachix the ghc builds coming from this?
       - name: Run ci.sh
         run: "nix-shell --argstr compiler ${{ matrix.compiler }} --arg dev false --run ./ci.sh"
+      #         ^^^^
+      # cachix the ghc builds coming from this?
