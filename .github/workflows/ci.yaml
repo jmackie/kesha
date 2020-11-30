@@ -13,7 +13,6 @@ jobs:
           - ubuntu-latest
           # TODO: check more operating systems?
         compiler:
-          - "ghc802"
           - "ghc822"
           - "ghc844"
           - "ghc865"
