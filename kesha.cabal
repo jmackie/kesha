@@ -34,8 +34,10 @@ library
   ghc-options:
     -Weverything
     -fno-warn-missing-import-lists
-    -fno-warn-safe
+    -fno-warn-missed-specialisations
+    -fno-warn-all-missed-specialisations
     -fno-warn-unsafe
+    -fno-warn-safe
   exposed-modules:
     Kesha
     Kesha.NAR
@@ -64,8 +66,10 @@ test-suite test
   ghc-options:
     -Weverything
     -fno-warn-missing-import-lists
-    -fno-warn-safe
+    -fno-warn-missed-specialisations
+    -fno-warn-all-missed-specialisations
     -fno-warn-unsafe
+    -fno-warn-safe
 
     -threaded
     -rtsopts
