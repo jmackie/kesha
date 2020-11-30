@@ -37,4 +37,4 @@ jobs:
 
       # TODO: cachix the ghc builds coming from this?
       - name: Run ci.sh
-        run: "nix-shell --arg dev false --run ./ci.sh"
+        run: "nix-shell --argstr compiler ${{ matrix.compiler }} --arg dev false --run ./ci.sh"
