@@ -33,6 +33,7 @@ library
   hs-source-dirs: src
   ghc-options:
     -Weverything
+    -Werror
     -fno-warn-missing-import-lists
     -fno-warn-missed-specialisations
     -fno-warn-all-missed-specialisations
@@ -65,6 +66,7 @@ test-suite test
   hs-source-dirs: test
   ghc-options:
     -Weverything
+    -Werror
     -fno-warn-missing-import-lists
     -fno-warn-missed-specialisations
     -fno-warn-all-missed-specialisations
