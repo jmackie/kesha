@@ -1,7 +1,7 @@
 cabal-version: >= 1.10
 
 name: kesha
-version: 0.1.0.0
+version: 0.1.0.1
 synopsis: Haskell implementation of nix-hash
 description: Compute the cryptographic hash of a path, à la <https://nixos.org/ Nix>.
 homepage: https://github.com/jmackie/kesha
