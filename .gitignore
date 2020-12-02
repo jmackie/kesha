@@ -1,6 +1,5 @@
 .ghc.environment.*
 dist-newstyle/
 dist/
-.stack-work/
 result
 cabal.project.freeze

@@ -28,17 +28,13 @@ source-repository head
   type: git
   location: git://github.com/jmackie/kesha.git
 
+flag ci
+  description: Enable settings for CI
+  default: False
+
 library
   default-language: Haskell2010
   hs-source-dirs: src
-  ghc-options:
-    -Weverything
-    -Werror
-    -fno-warn-missing-import-lists
-    -fno-warn-missed-specialisations
-    -fno-warn-all-missed-specialisations
-    -fno-warn-unsafe
-    -fno-warn-safe
   exposed-modules:
     Kesha
     Kesha.NAR
@@ -59,22 +55,23 @@ library
     cryptohash-sha1 >= 0.11.100 && < 0.12,
     cryptohash-sha256 >= 0.11.101 && < 0.12
 
-test-suite test
-  default-language: Haskell2010
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
-  hs-source-dirs: test
   ghc-options:
     -Weverything
-    -Werror
+
     -fno-warn-missing-import-lists
     -fno-warn-missed-specialisations
     -fno-warn-all-missed-specialisations
     -fno-warn-unsafe
     -fno-warn-safe
 
-    -threaded
-    -rtsopts
+  if flag(ci)
+    ghc-options: -Werror
+
+test-suite test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
   build-depends:
     kesha,
 
@@ -84,8 +81,23 @@ test-suite test
     directory,
     filepath,
 
-    -- Test dependencies
+    -- test-specific dependencies
     process,
     hspec,
     QuickCheck,
     temporary
+
+  ghc-options:
+    -threaded
+    -rtsopts
+
+    -Weverything
+
+    -fno-warn-missing-import-lists
+    -fno-warn-missed-specialisations
+    -fno-warn-all-missed-specialisations
+    -fno-warn-unsafe
+    -fno-warn-safe
+
+  if flag(ci)
+    ghc-options: -Werror
