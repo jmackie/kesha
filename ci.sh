@@ -13,8 +13,8 @@ print_versions() { (
 
 build_and_test() {
   cabal new-update
-  cabal new-build
-  cabal new-test --test-show-details=streaming
+  cabal new-build -f ci
+  cabal new-test -f ci --test-show-details=streaming
 }
 
 lint() {
